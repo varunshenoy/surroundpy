@@ -12,18 +12,28 @@ class Soundstage():
         self.size = size
         self.speakers = speakers
 
-    def play(self):
+    def play(self, op="overlay"):
+        """
+        Combine all speakers on a Soundstage by either appending them
+        or ovelaying them.
+        """
         assert(len(self.speakers) > 0)
         # SORT SOUNDS BY LENGTH (LONGEST TO SHORTEST)
         mixed = self.speakers[0].get_audio()
         for s in self.speakers[1:]:
-            mixed = mixed.overlay(s.get_audio())
+            if op is "overlay":
+                mixed = mixed.overlay(s.get_audio())
+            elif op is "append":
+                mixed = mixed.append(s.get_audio())
         play(mixed)
 
     def add_speaker(self, speaker):
         self.speakers.append(speaker)
 
     def plot(self):
+        """
+        Construct a simple spatial plot of a user and the speakers on the soundstage.
+        """
         width = self.size[0]
         height = self.size[1]
         fig, ax = plt.subplots()

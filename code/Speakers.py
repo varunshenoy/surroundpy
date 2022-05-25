@@ -3,22 +3,39 @@ from utils import pad, read, play_audio, get_audio, nround
 from pydub.playback import play
 import matplotlib.pyplot as plt
 
+class Track():
+    """
+    The fundamental object representation of a sound file used by speakers.
+    """
+    def __init__(self, signal, sr=None):
+        # passed in filename
+        if type(signal) is str:
+            self.sr, self.signal = read(signal)
+
+        # passed in signal
+        elif type(signal) is np.ndarray:
+            self.signal = signal
+            assert(sr is not None)
+            self.sr = sr
+
 class BasicSpeaker:
-    def __init__(self, point, fn, is_ambisonic=False, signal=None, sr=0):
+    """
+    A simple binaural speaker model that emulates distance and angle of a sound source.
+    """
+    def __init__(self, point, track, is_ambisonic=False, signal=None, sr=0):
+        assert(type(track) is Track)
+
         self.point = point
         self.ear_dist = 10
-        self.signal=None
-        self.is_ambisonic = is_ambisonic
-        if is_ambisonic:
-            self.sound=signal
-            self.signal= signal
-            self.sr = sr
-            return
-        
-        self.fn = fn
-        self.sr, self.sound = self.calculate_sound()
+        self.track = track
+ 
+        self.sr, self.sound = self.localize()
 
     def rotate(self, theta):
+        """
+        Rotate a speaker about the origin by theta.
+        """
+
         # rotates point by theta about origin
         theta = np.deg2rad(theta)
 
@@ -29,9 +46,14 @@ class BasicSpeaker:
         y_ = y * np.cos(theta) + x * np.sin(theta)
         
         self.point = np.array([x_, y_])
-        self.sr, self.sound = self.calculate_sound()
+        self.sr, self.sound = self.localize()
 
-    def calculate_sound(self):
+    def localize(self):
+        """
+        Calculate how much to shift right and left channels
+        and overall delay based on speaker location.
+        """
+
         c = 340 # speed of sound in air (m/s)
         ear_dist = self.ear_dist # for exaggeration (more like 0.2)
         l_ear = np.array([-ear_dist, 0.])
@@ -43,16 +65,13 @@ class BasicSpeaker:
         r_dist = np.linalg.norm(self.point - r_ear)
         r_t = r_dist / c
 
-        if not self.is_ambisonic:
-            sr, x = read(self.fn)
-        else:
-            sr = self.sr
-            x = self.signal
+        sr  = self.track.sr
+        x = self.track.signal
         
         # pad l and r
-        # TODO: Support single channel audio
+        r_channel = 1 if x.shape[1] > 1 else 0 # support mono audio
         l_pad, left = pad(x[:, 0], l_t)
-        r_pad, right = pad(x[:, 1], r_t)
+        r_pad, right = pad(x[:, r_channel], r_t)
 
         if l_pad > r_pad:
             # pad r in back
@@ -65,60 +84,91 @@ class BasicSpeaker:
         
         sound = np.array([left, right]).T
         return sr, sound
+
+    def delay(self, t):
+        """
+        Apply a delay to a speaker by t seconds.
+        """
+
+        x = self.track.signal
+        samples, left = pad(x[:, 0], t)
+        samples, right = pad(x[:, 1], t)
+        self.sound = np.array([left, right]).T
+        return self.sound
         
     def play(self):
+        """
+        Play the audio for a single speaker
+        """
         play_audio(self.sr, self.sound)
 
     def get_audio(self):
+        """
+        Fetch the audio signal for a speaker.
+        """
         return get_audio(self.sr, self.sound)
 
-    def plot(self):
-        sr, sound = self.calculate_sound()
+    def plot(self, title="Track Signal"):
+        """
+        Plot the left and right channels of a song.
+        """
+        sr, sound = self.localize()
         plt.figure(figsize=(16,10))
-        plt.plot(sound)
-        plt.title("Sample MP3 loading into Numpy")
+        plt.plot(sound[:,0], label="Left")
+        plt.plot(sound[:,1], label="Right")
+        plt.legend()
+        plt.title(title)
         plt.show()
 
 class AmbisonicSpeaker():
-    def __init__(self, fn, size, theta=60, phi=30, use_HTRF=False):
-        self.fn = fn
+    """
+    Encode/decode signals into/from an ambisonic sound representation for immersive surround sound
+    """
+    def __init__(self, track, size, theta=60, phi=30, use_HTRF=False):
         self.speakers = []
         self.size = size
         self.theta = theta
         self.phi = phi
         self.use_HTRF = use_HTRF
-
-        self.calculate_sound()
+        self.track = track
+        
+        self.localize()
         
 
-    def calculate_sound(self):
+    def localize(self):
+        """
+        Construct four speakers to represent the LF, LB, RF, and RB speakers in an ambisonic layout.
+        """
         size = self.size/2
         theta = np.deg2rad(self.theta)
         phi = np.deg2rad(self.phi)
 
-        self.point = np.array([0, 0, 0])
-        sr, S = read(self.fn)
-        
+        sr  = self.track.sr
+        S = self.track.signal
+
+        # Ambisonic encoding        
         W = S * 1/np.sqrt(2)
         X = S * np.cos(theta) * np.cos(phi)
         Y = S * np.sin(theta) * np.cos(phi)
         Z = S * np.sin(phi)
 
+        # Ambisonic decoding
         LF = (2 * W + X + Y) * np.sqrt(8) / 10
         LB = (2 * W - X + Y) * np.sqrt(8) / 10
         RF = (2 * W + X - Y) * np.sqrt(8) / 10
         RB = (2 * W - X - Y) * np.sqrt(8) / 10
 
+        # Speakers can use HRTF or simple accoustics
         if self.use_HTRF:
-            LF_speaker = HRTFSpeaker(np.array([-size[0], size[1]]), None, is_ambisonic=True, signal=LF, sr=sr)
-            LB_speaker = HRTFSpeaker(np.array([-size[0], -size[1]]), None, is_ambisonic=True, signal=LB, sr=sr) 
-            RF_speaker = HRTFSpeaker(np.array([size[0], size[1]]), None, is_ambisonic=True, signal=RF, sr=sr)
-            RB_speaker = HRTFSpeaker(np.array([size[0], -size[1]]), None, is_ambisonic=True, signal=RB, sr=sr)
+            LF_speaker = HRTFSpeaker(np.array([-size[0], size[1]]), Track(LF, sr=sr))
+            LB_speaker = HRTFSpeaker(np.array([-size[0], -size[1]]), Track(LB, sr=sr)) 
+            RF_speaker = HRTFSpeaker(np.array([size[0], size[1]]), Track(RF, sr=sr))
+            RB_speaker = HRTFSpeaker(np.array([size[0], -size[1]]), Track(RB, sr=sr))
         else:
-            LF_speaker = BasicSpeaker(np.array([-size[0], size[1]]), None, is_ambisonic=True, signal=LF, sr=sr)
-            LB_speaker = BasicSpeaker(np.array([-size[0], -size[1]]), None, is_ambisonic=True, signal=LB, sr=sr) 
-            RF_speaker = BasicSpeaker(np.array([size[0], size[1]]), None, is_ambisonic=True, signal=RF, sr=sr)
-            RB_speaker = BasicSpeaker(np.array([size[0], -size[1]]), None, is_ambisonic=True, signal=RB, sr=sr)
+            LF_speaker = BasicSpeaker(np.array([-size[0], size[1]]), Track(LF, sr=sr))
+            LB_speaker = BasicSpeaker(np.array([-size[0], -size[1]]), Track(LB, sr=sr)) 
+            RF_speaker = BasicSpeaker(np.array([size[0], size[1]]), Track(RF, sr=sr))
+            RB_speaker = BasicSpeaker(np.array([size[0], -size[1]]), Track(RB, sr=sr))
 
         self.speakers = [LF_speaker, LB_speaker, RF_speaker, RB_speaker]
 
@@ -137,7 +187,16 @@ class AmbisonicSpeaker():
 
 
 class HRTFSpeaker(BasicSpeaker):
-    def calculate_sound(self, elev=0, plot_ir=False):
+    """
+    An improvement on the BasicSpeaker that uses head-related transfer functions (HRTF) for more accurate
+    and anatomically better sound localization. 
+    """
+
+    def localize(self, elev=0, plot_ir=False):
+        """
+        An improvement on the BasicSpeaker that uses head-related transfer functions (HRTF) for more accurate
+        and anatomically better sound localization. 
+        """
 
         # calculate angle
         x = self.point[0]
@@ -153,13 +212,15 @@ class HRTFSpeaker(BasicSpeaker):
         sr, hrir = read(fname)
         hrir = np.divide(hrir, hrir.max() * 5, casting="unsafe")
 
+        # visualize left/right localization via plotting
         if plot_ir:
             plt.figure()
             plt.plot(hrir)
             plt.title(f"HTIR Function at {deg} degrees")
             plt.show()
-            # play_audio(sr, hrir)
 
+        # the HRTF is symmetric, so we may need to flip the signal depending on 
+        # the sign of the angle
         if sgn < 0:
             hrir = np.flip(hrir, axis=1)
             if plot_ir:
@@ -167,23 +228,17 @@ class HRTFSpeaker(BasicSpeaker):
                 plt.plot(hrir)
                 plt.title(f"HTIR Function at {deg} degrees")
                 plt.show()
-            # play_audio(sr, hrir)
             
+        sr = self.track.sr
+        x = self.track.signal
 
-        # convolve signal with impulse
-        if not self.is_ambisonic:
-            sr, x = read(self.fn)
-        else:
-            sr = self.sr
-            x = self.signal
-
+        # convert track into mono
         if x.shape[1] > 1:
             x_mono = np.mean(x, axis=1)
         else:
             x_mono = x
 
-        # play_audio(sr, x_mono)
-
+        # convolve signal with impulse
         s_L = np.convolve(x_mono, hrir[:,0])
         s_R = np.convolve(x_mono, hrir[:,1])
         

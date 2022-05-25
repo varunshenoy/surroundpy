@@ -3,6 +3,9 @@ import numpy as np
 from pydub.playback import play
 
 def pad(signal, time, front=True, samples=-1):
+    """
+    Pad a signal in the front or back to simmulate delays (i.e. signal enters one ear before another)
+    """
     if samples == -1:
         samples = int(time * 1000)
     if front:
@@ -43,4 +46,7 @@ def get_audio(sr, x, normalized=False):
     return song
 
 def nround(x, base=5):
-        return base * round(x/base)
+    """
+    Rounding function to pick optimal discretized HRTF file
+    """
+    return base * round(x/base)
