@@ -69,7 +69,9 @@ class BasicSpeaker:
         x = self.track.signal
         
         # pad l and r
-        r_channel = 1 if x.shape[1] > 1 else 0 # support mono audio
+        if x.ndim == 1:
+            x = np.array([x, x]).T
+        r_channel = 1 if x.shape[0] > 1 else 0 # support mono audio
         l_pad, left = pad(x[:, 0], l_t)
         r_pad, right = pad(x[:, r_channel], r_t)
 
@@ -120,11 +122,11 @@ class BasicSpeaker:
         plt.title(title)
         plt.show()
 
-class AmbisonicSpeaker():
+class AmbisonicSpeakers():
     """
     Encode/decode signals into/from an ambisonic sound representation for immersive surround sound
     """
-    def __init__(self, track, size, theta=60, phi=30, use_HTRF=False):
+    def __init__(self, track, size, theta=60, phi=30, use_HTRF=True):
         self.speakers = []
         self.size = size
         self.theta = theta
@@ -203,7 +205,10 @@ class HRTFSpeaker(BasicSpeaker):
         y = self.point[1]
 
         deg = nround(np.rad2deg(np.arctan2(x, y)))
-        sgn = deg/abs(deg)
+        if deg == 0:
+            sgn = 1
+        else:
+            sgn = deg/abs(deg)
         deg = abs(deg)
 
         # pick correct file
@@ -216,7 +221,10 @@ class HRTFSpeaker(BasicSpeaker):
         if plot_ir:
             plt.figure()
             plt.plot(hrir)
-            plt.title(f"HTIR Function at {deg} degrees")
+            plt.plot(hrir[:,0], label="Left")
+            plt.plot(hrir[:,1], label="Right")
+            plt.title(f"HRIR Function at {deg} degrees and {nround(elev, base=10)} elevation")
+            plt.legend()
             plt.show()
 
         # the HRTF is symmetric, so we may need to flip the signal depending on 
@@ -226,7 +234,10 @@ class HRTFSpeaker(BasicSpeaker):
             if plot_ir:
                 plt.figure()
                 plt.plot(hrir)
-                plt.title(f"HTIR Function at {deg} degrees")
+                plt.plot(hrir[:,0], label="Left")
+                plt.plot(hrir[:,1], label="Right")
+                plt.title(f"HRIR Function at {int(sgn * deg)} degrees")
+                plt.legend()
                 plt.show()
             
         sr = self.track.sr

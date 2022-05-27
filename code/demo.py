@@ -1,5 +1,5 @@
 from Soundstage import Soundstage
-from Speakers import BasicSpeaker, AmbisonicSpeaker, HRTFSpeaker, Track
+from Speakers import BasicSpeaker, AmbisonicSpeakers, HRTFSpeaker, Track
 import numpy as np
 
 size = np.array([1000, 1000])
@@ -11,24 +11,18 @@ metal = Track("../sounds/metallic-beat-short.wav")
 roar = Track("../sounds/roar.wav")
 geese = Track("../sounds/geese.wav")
 
-a = AmbisonicSpeaker(flute, size)
-myStage.add_speaker(a)
+a = AmbisonicSpeakers(flute, size)
 
 s1 = BasicSpeaker(np.array([300, 0]), bark)
-myStage.add_speaker(s1)
 
 s2 = BasicSpeaker(np.array([-300, 0]), metal)
-myStage.add_speaker(s2)
-myStage.rotate(45)
 
 s3 = HRTFSpeaker(np.array([200, 100]), roar)
-myStage.add_speaker(s3)
 
 s4 = HRTFSpeaker(np.array([-400, -100]), geese)
-myStage.add_speaker(s4)
+
+myStage.add_speakers([a, s1, s2, s3, s4])
 
 myStage.plot()
 
-myStage.rotate(160)
-
-myStage.play()
+myStage.play(save_name="full_demo.wav")

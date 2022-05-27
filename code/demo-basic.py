@@ -9,6 +9,7 @@ bark = Track("../sounds/bark.wav")
 
 s1 = BasicSpeaker(np.array([300, 0]), bark)
 myStage.add_speaker(s1)
+s1.plot(title="Dog Barking at (300m, 0m)")
 
 myStage.plot()
-myStage.play()
+myStage.play(save_name="basic_demo.wav")

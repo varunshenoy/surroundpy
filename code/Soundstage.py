@@ -3,7 +3,7 @@ from utils import pad, read, play_audio, get_audio
 from pydub.playback import play
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from Speakers import BasicSpeaker, AmbisonicSpeaker, HRTFSpeaker
+from Speakers import BasicSpeaker, AmbisonicSpeakers, HRTFSpeaker
 import matplotlib as mpl
 import matplotlib.lines as mlines
 
@@ -12,7 +12,7 @@ class Soundstage():
         self.size = size
         self.speakers = speakers
 
-    def play(self, op="overlay"):
+    def play(self, op="overlay", save_name=None):
         """
         Combine all speakers on a Soundstage by either appending them
         or ovelaying them.
@@ -21,16 +21,22 @@ class Soundstage():
         # SORT SOUNDS BY LENGTH (LONGEST TO SHORTEST)
         mixed = self.speakers[0].get_audio()
         for s in self.speakers[1:]:
-            if op is "overlay":
+            if op == "overlay":
                 mixed = mixed.overlay(s.get_audio())
-            elif op is "append":
+            elif op == "append":
                 mixed = mixed.append(s.get_audio())
+        if save_name is not None:
+            mixed.export(save_name, format="wav")
         play(mixed)
+
 
     def add_speaker(self, speaker):
         self.speakers.append(speaker)
 
-    def plot(self):
+    def add_speakers(self, speakers):
+        self.speakers += speakers
+
+    def plot(self, title="Soundstage Layout"):
         """
         Construct a simple spatial plot of a user and the speakers on the soundstage.
         """
@@ -51,7 +57,7 @@ class Soundstage():
                 plt.plot(s.ear_dist, 0, marker="o", markersize=10, markeredgecolor="black", markerfacecolor="pink")
                 plt.plot(-s.ear_dist, 0, marker="o", markersize=10, markeredgecolor="black", markerfacecolor="pink")
             
-            if type(s) is AmbisonicSpeaker:
+            if type(s) is AmbisonicSpeakers:
                 for k in s.speakers:
                     plt.plot(k.point[0], k.point[1], marker="h", markersize=10, markeredgecolor="black", markerfacecolor="c")
             
@@ -70,7 +76,7 @@ class Soundstage():
                                 markersize=10, label='HRTF Speaker')
 
         plt.legend(handles=[ear, basic, ambi, hrtf])
-
+        plt.title(title)
         plt.axis('equal')
         plt.show()
 

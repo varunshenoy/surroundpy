@@ -15,4 +15,4 @@ s2 = HRTFSpeaker(np.array([-300, -100]), bell)
 myStage.add_speaker(s2)
 
 myStage.plot()
-myStage.play()
+myStage.play(save_name="hrtf_demo.wav")
