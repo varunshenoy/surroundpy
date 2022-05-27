@@ -4,8 +4,6 @@ Author: Varun Shenoy (vnshenoy@stanford.edu)
 
 Affiliation: Dept. of Electrical Engineering, Stanford University
 
-Email is the best way to reach out to either of us.
-
 ## Project File Structure
 
 - `requirements.txt` contains all the dependencies necessary to run this project. You can use conda or pip to install the exact versions of dependencies which we used from this file.
