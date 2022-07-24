@@ -1,5 +1,6 @@
 # Surround.py: A Framework for Immersive Spatial Audio Simulation and Education
 
+[ [Link to Paper](https://drive.google.com/file/d/1OJ-hxY4pB_YSWVjqa-5KIeeadIcZRsNg/view) ]
 Author: Varun Shenoy (vnshenoy@stanford.edu)
 
 Affiliation: Dept. of Electrical Engineering, Stanford University
