@@ -6,6 +6,8 @@ Author: Varun Shenoy (vnshenoy@stanford.edu)
 
 Affiliation: Dept. of Electrical Engineering, Stanford University
 
+[John Carmack on HRTFs and Sound Localization](https://youtu.be/akveRNY6Ulw?t=450)
+
 ## Project File Structure
 
 - `requirements.txt` contains all the dependencies necessary to run this project. You can use conda or pip to install the exact versions of dependencies which we used from this file.
